@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boundless · Product-Fitted Inference Console (synthetic prototype)</title>
+<meta name="description" content="Unofficial synthetic prototype of a Boundless Product-Fitted Inference Console: customer workload stub, cited model recommendation, serving-tune packet, deploy / retune / evals / escalate gates, and production impact. No accounts, no live inference, not affiliated with Boundless.">
+<style>
+  :root {
+    --paper: #f9f8f5;
+    --cream: #fffff6;
+    --card: #ffffff;
+    --ink: #0f0f0e;
+    --ink-soft: #3b3a35;
+    --gray: #6f6e66;
+    --gray-soft: #a8a69c;
+    --line: #e8e5dd;
+    --line-strong: #d8d4c8;
+    --purple: #ae93fc;
+    --purple-soft: #f1ebfe;
+    --purple-ink: #3f2a7d;
+    --lime: #9de500;
+    --green: #16713a;
+    --green-soft: #e7f5ea;
+    --amber: #8f5700;
+    --amber-soft: #fcf1dc;
+    --red: #b42318;
+    --red-soft: #fcebe7;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(15,15,14,.05), 0 8px 24px rgba(15,15,14,.06);
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --serif: "STKBureauSerif", Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  html, body { margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    background: var(--cream);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 9px; flex: none;
+    background: var(--ink); color: var(--cream);
+    display: grid; place-items: center;
+    font-family: var(--serif); font-weight: 700; font-size: 17px;
+  }
+  .brand-name { font-family: var(--serif); font-size: 19px; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
+  .brand-sub { font-size: 11px; color: var(--gray); font-weight: 600; letter-spacing: .04em; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 700;
+    background: var(--card); border: 1px solid var(--line-strong);
+    white-space: nowrap;
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-soft); }
+  .pill.green { color: var(--green); background: var(--green-soft); border-color: #cfe8d6; }
+  .pill.green .dot { background: var(--green); }
+  .pill.purple { color: var(--purple-ink); background: var(--purple-soft); border-color: #dccdf9; }
+  .pill.purple .dot { background: var(--purple); }
+  .pill.amber { color: var(--amber); background: var(--amber-soft); border-color: #ecd9b4; }
+  .pill.amber .dot { background: #d99b1f; }
+  .pill.gray { color: var(--gray); }
+  .pill.gray .dot { background: var(--gray-soft); }
+
+  /* ---------- layout ---------- */
+  .wrap { max-width: 1020px; margin: 0 auto; padding: 14px 16px 40px; }
+  .cols { display: grid; gap: 14px; }
+  @media (min-width: 980px) {
+    .cols { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+    .card.workload, .card.model, .card.tune { margin: 0; }
+  }
+
+  /* ---------- steps ---------- */
+  .steps {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 14px; margin-bottom: 14px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  .step { display: flex; align-items: center; gap: 7px; flex: none; }
+  .step-num {
+    width: 24px; height: 24px; border-radius: 50%; flex: none;
+    display: grid; place-items: center;
+    font-size: 11.5px; font-weight: 800;
+    color: var(--gray-soft); background: #f0eee8;
+  }
+  .step-name { font-size: 12.5px; font-weight: 700; color: var(--gray-soft); white-space: nowrap; }
+  .step.done .step-num { background: var(--purple); color: var(--ink); }
+  .step.done .step-name { color: var(--ink); }
+  .step.now .step-num { background: var(--ink); color: var(--cream); box-shadow: 0 0 0 3px rgba(15,15,14,.14); }
+  .step.now .step-name { color: var(--ink); }
+  @media (max-width: 639px) {
+    .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 12px 10px; }
+    .step { flex-direction: column; gap: 3px; text-align: center; }
+    .step-arrow { display: none; }
+    .step-name { font-size: 10.5px; }
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  .eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--purple-ink); margin: 0 0 10px;
+  }
+  .eyebrow .step-tag {
+    background: var(--purple-soft); border: 1px solid #dccdf9;
+    color: var(--purple-ink);
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .card h2 { font-family: var(--serif); font-size: 21px; line-height: 1.2; margin: 0 0 12px; letter-spacing: -.01em; }
+  .card h3 { font-size: 13.5px; margin: 14px 0 8px; letter-spacing: .02em; }
+  .muted { color: var(--gray); }
+  .mono { font-family: var(--mono); font-size: .92em; }
+
+  .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; font-size: 13.5px; }
+  .kv dt { color: var(--gray); font-weight: 600; }
+  .kv dd { margin: 0; font-weight: 600; }
+  .kv dd b { font-weight: 800; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 700;
+    background: var(--purple-soft); color: var(--purple-ink);
+    border: 1px solid #dccdf9;
+  }
+  .chip .tick { color: var(--green); font-weight: 900; }
+  .chip.plain { background: #f4f2ec; color: var(--ink-soft); border-color: var(--line-strong); }
+
+  .note {
+    margin-top: 12px; padding: 10px 12px;
+    background: var(--cream); border: 1px solid var(--line);
+    border-radius: 12px; font-size: 13px; color: var(--ink-soft);
+  }
+  .note b { color: var(--ink); }
+
+  /* model card */
+  .model-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .model-name { font-family: var(--serif); font-size: 22px; font-weight: 700; }
+  .model-id { font-family: var(--mono); font-size: 13px; color: var(--purple-ink); background: var(--purple-soft); padding: 3px 8px; border-radius: 7px; }
+  .bestfor { font-size: 13.5px; color: var(--gray); margin-top: 4px; }
+  .bestfor b { color: var(--ink); }
+  .price-line { margin-top: 10px; font-size: 13.5px; }
+  .alt { margin-top: 12px; border-top: 1px dashed var(--line-strong); padding-top: 10px; font-size: 12.5px; color: var(--gray); }
+  .alt b { color: var(--ink-soft); }
+
+  /* tune packet */
+  .lever {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px dashed var(--line);
+  }
+  .lever:last-of-type { border-bottom: none; }
+  .lever-flag {
+    flex: none; width: 8px; height: 8px; border-radius: 50%;
+    margin-top: 7px; background: var(--lime); box-shadow: 0 0 0 3px rgba(157,229,0,.25);
+  }
+  .lever-name { font-size: 13.5px; font-weight: 800; }
+  .lever-change { font-family: var(--mono); font-size: 12.5px; color: var(--purple-ink); font-weight: 700; margin-top: 1px; }
+  .lever-note { font-size: 12.5px; color: var(--gray); margin-top: 2px; }
+  .projection {
+    margin-top: 12px; padding: 12px;
+    background: var(--ink); color: var(--cream);
+    border-radius: 12px;
+  }
+  .projection .p-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #cfc9bd; }
+  .projection .p-row { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 6px; }
+  .projection .p-metric { font-family: var(--mono); font-size: 20px; font-weight: 700; }
+  .projection .p-metric small { font-size: 12px; color: #cfc9bd; font-weight: 600; }
+  .projection .p-delta { font-family: var(--mono); font-size: 12.5px; color: var(--lime); font-weight: 700; }
+
+  /* gates */
+  .gate-stack { display: grid; gap: 10px; }
+  .gate {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    min-height: 52px; padding: 10px 16px;
+    border-radius: 12px; cursor: pointer;
+    font: inherit; font-size: 15px; font-weight: 800; text-align: left;
+    touch-action: manipulation;
+    border: 1.5px solid var(--ink); background: var(--card); color: var(--ink);
+  }
+  .gate:hover { background: var(--cream); }
+  .gate:disabled { opacity: .38; cursor: not-allowed; background: var(--card); }
+  .gate.g-primary { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+  .gate.g-primary:hover { background: #000; }
+  .gate.g-purple { background: var(--purple); color: var(--ink); border-color: #9a7cef; }
+  .gate.g-purple:hover { background: #bca4fd; }
+  .gate .g-sub { font-size: 11.5px; font-weight: 600; opacity: .72; display: block; margin-top: 1px; }
+  .gate .g-arrow { margin-left: auto; font-size: 17px; flex: none; }
+
+  /* banners */
+  .banner { display: none; margin-top: 14px; padding: 13px 15px; border-radius: 12px; font-size: 13.5px; border: 1px solid; }
+  .banner.show { display: block; }
+  .banner h4 { margin: 0 0 5px; font-size: 13.5px; }
+  .banner ul { margin: 6px 0 0; padding-left: 18px; }
+  .banner li { margin: 3px 0; }
+  .banner.ok { background: var(--green-soft); border-color: #cfe8d6; color: var(--green); }
+  .banner.ok h4 { color: var(--green); }
+  .banner.warn { background: var(--amber-soft); border-color: #ecd9b4; color: var(--amber); }
+  .banner.warn h4 { color: var(--amber); }
+  .banner.ink { background: var(--cream); border-color: var(--line-strong); color: var(--ink-soft); }
+  .banner.ink h4 { color: var(--ink); }
+
+  /* impact */
+  .impact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .impact-cell {
+    background: var(--cream); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px;
+  }
+  .impact-label { font-size: 10.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--gray); }
+  .impact-value { font-family: var(--mono); font-size: 24px; font-weight: 700; margin-top: 4px; letter-spacing: -.02em; }
+  .impact-sub { font-size: 11.5px; color: var(--gray); margin-top: 3px; font-weight: 600; }
+  .impact-sub.good { color: var(--green); }
+  .impact-sub.ok { color: var(--amber); }
+  .api-strip {
+    margin-top: 12px; padding: 11px 13px;
+    background: #171615; color: #e9e5da;
+    border-radius: 12px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    overflow-x: auto; white-space: nowrap;
+  }
+  .api-strip .c { color: var(--purple); }
+  .api-strip .k { color: var(--lime); }
+
+  footer {
+    max-width: 1020px; margin: 0 auto; padding: 0 16px 34px;
+    font-size: 12px; color: var(--gray);
+  }
+  footer b { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">B</div>
+    <div>
+      <div class="brand-name">Boundless</div>
+      <div class="brand-sub">inference partner · product console</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="pill gray"><span class="dot"></span>Synthetic workspace</span>
+    <span class="pill green" id="statusPill"><span class="dot"></span><span id="statusText">Fit ready</span></span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="steps" aria-label="Walkthrough">
+    <span class="step done" id="st1"><span class="step-num">1</span><span class="step-name">Workload</span></span>
+    <span class="step-arrow">→</span>
+    <span class="step done" id="st2"><span class="step-num">2</span><span class="step-name">Model</span></span>
+    <span class="step-arrow">→</span>
+    <span class="step done" id="st3"><span class="step-num">3</span><span class="step-name">Tune</span></span>
+    <span class="step-arrow">→</span>
+    <span class="step now" id="st4"><span class="step-num">4</span><span class="step-name">Gate</span></span>
+    <span class="step-arrow">→</span>
+    <span class="step" id="st5"><span class="step-num">5</span><span class="step-name">Impact</span></span>
+  </nav>
+
+  <div class="cols">
+
+    <!-- 1 · Workload stub -->
+    <section class="card workload" id="cardWorkload">
+      <p class="eyebrow"><span class="step-tag">Step 1</span> Workload stub · from Technical BD</p>
+      <h2>Longpoint — sales-ops agents</h2>
+      <p class="muted" style="margin-top:-6px">B2B AI-native customer · long-horizon agent rollouts on the product critical path.</p>
+      <dl class="kv">
+        <dt>Product</dt><dd>Longpoint Ops · multi-step campaign rollouts</dd>
+        <dt>Traffic</dt><dd>Bursty batches · 9 rollouts/s avg, 2.2× peak at 09:00 / 13:00 / 17:00 UTC</dd>
+        <dt>Context shape</dt><dd>~240k in-tokens per rollout · 65% reusable prefix (system + tools + CRM)</dd>
+        <dt>Quality threshold</dt><dd>Task success ≥ <b>86%</b> · today 84%</dd>
+        <dt>Latency target</dt><dd>p95 ≤ <b>2.5s</b> per agent step · today 4.8s</dd>
+        <dt>Cost target</dt><dd>≤ <b>$0.020</b> per rollout · today $0.041</dd>
+        <dt>GPU today</dt><dd class="mono">8× H100 · burst to 32</dd>
+        <dt>Baseline spend</dt><dd><b>$31,980/mo</b> on a generic API <span class="muted">(~780k rollouts)</span></dd>
+      </dl>
+      <div class="note">Brought in by Technical BD field signal: “cheaper inference, quality is holding us back from scaling rollouts.” Worked backwards into targets above.</div>
+    </section>
+
+    <!-- 2 · Model recommendation -->
+    <section class="card model" id="cardModel">
+      <p class="eyebrow"><span class="step-tag">Step 2</span> Model selection · Boundless recommendation</p>
+      <div class="model-head">
+        <span class="model-name">DeepSeek V4 Flash</span>
+        <span class="model-id">deepseek-v4-flash</span>
+      </div>
+      <p class="bestfor">Open-weight · catalog label: <b>“low-cost text agents with long prompts and reusable prefixes”</b> — matches the rollout workload.</p>
+      <p class="price-line mono">$0.21 / MTOK input · 1M context · OpenAI-compatible</p>
+      <div class="chips">
+        <span class="chip"><span class="tick">✓</span> Quality: holds 86% bar on 120-case tool-call golden set</span>
+        <span class="chip"><span class="tick">✓</span> Context: 1M window &gt; 96k peak per step</span>
+        <span class="chip"><span class="tick">✓</span> Prefix reuse 65% → caching lever</span>
+        <span class="chip"><span class="tick">✓</span> Cost: $0.21 in/MTOK vs $0.35 today</span>
+      </div>
+      <div class="note"><b>Evals note:</b> golden set is single tool-call cases. Multi-step rollout quality is verified on shadow traffic before go-live — see the gate.</div>
+      <div class="alt"><b>Alternatives:</b> DeepSeek V4.1 Flash if image-in steps appear · GLM-5.3 Flash for 1M-ctx coding-heavy rollouts · Nemotron 3 Super if an orchestrator layer shows up.</div>
+    </section>
+
+    <!-- 3 · Serving-tune packet -->
+    <section class="card tune" id="cardTune">
+      <p class="eyebrow"><span class="step-tag">Step 3</span> Serving tune · fitted to this traffic</p>
+      <h2 style="font-size:19px">Tuned serving path</h2>
+
+      <div class="lever">
+        <span class="lever-flag"></span>
+        <div>
+          <div class="lever-name">Precision</div>
+          <div class="lever-change">FP16 → FP8</div>
+          <div class="lever-note">Quality-neutral on the 120-case golden set</div>
+        </div>
+      </div>
+      <div class="lever">
+        <span class="lever-flag"></span>
+        <div>
+          <div class="lever-name">Parallelism</div>
+          <div class="lever-change">TP 1 → TP 2 · DP 8</div>
+          <div class="lever-note">Long outputs; 8-way data parallel for burst windows</div>
+        </div>
+      </div>
+      <div class="lever">
+        <span class="lever-flag"></span>
+        <div>
+          <div class="lever-name">Batching</div>
+          <div class="lever-change">Static 8 → continuous 64</div>
+          <div class="lever-note">Queue drain 4.1s → 0.9s at 2.2× peak</div>
+        </div>
+      </div>
+      <div class="lever">
+        <span class="lever-flag"></span>
+        <div>
+          <div class="lever-name">Caching</div>
+          <div class="lever-change">Off → prefix cache on</div>
+          <div class="lever-note">65% prefix reuse across rollout steps</div>
+        </div>
+      </div>
+      <div class="lever">
+        <span class="lever-flag"></span>
+        <div>
+          <div class="lever-name">Routing</div>
+          <div class="lever-change">Direct → shadow traffic 100% → canary 25% → 100%</div>
+          <div class="lever-note">Boundless shadow-traffic runbook, no customer impact</div>
+        </div>
+      </div>
+
+      <div class="projection">
+        <div class="p-label">Projected on tuned path</div>
+        <div class="p-row">
+          <span class="p-metric" id="projCost">$0.017 <small>/ rollout</small></span>
+          <span class="p-delta" id="projCostDelta">−59%</span>
+          <span class="p-metric" id="projP95">1.9s <small>p95</small></span>
+          <span class="p-metric" id="projTput">34 <small>rollouts/s</small></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 · Human gate -->
+    <section class="card" id="cardGate">
+      <p class="eyebrow"><span class="step-tag">Step 4</span> Human gate · Founding PM decision</p>
+      <div class="gate-stack" id="gateStack">
+        <button class="gate g-purple" id="gateDeploy" data-gate="deploy">
+          <span>Deploy tuned path<span class="g-sub">Go live at 100% on the tuned serving path</span></span>
+          <span class="g-arrow">→</span>
+        </button>
+        <button class="gate" id="gateRetune" data-gate="retune">
+          <span>Retune under traffic<span class="g-sub">Traffic shape changed — recompute the tune packet</span></span>
+          <span class="g-arrow">↻</span>
+        </button>
+        <button class="gate" id="gateEvals" data-gate="evals">
+          <span>Need better eval set<span class="g-sub">Quality bar not proven for multi-step rollouts</span></span>
+          <span class="g-arrow">?</span>
+        </button>
+        <button class="gate" id="gateFde" data-gate="fde">
+          <span>Escalate to forward-deployed eng<span class="g-sub">Hands-on partner team owns selection → deploy → ops</span></span>
+          <span class="g-arrow">→</span>
+        </button>
+      </div>
+    </section>
+
+  </div><!-- /cols -->
+
+  <!-- banners -->
+  <div class="banner warn" id="bannerEvals">
+    <h4>Status: Not ready to deploy — quality bar not proven for long-horizon rollouts</h4>
+    <ul>
+      <li>Long-horizon golden set: multi-step tool-call rollouts (current set covers single tool calls only)</li>
+      <li>Regression harness to re-run quality on every model bump</li>
+      <li>Cost guardrail measurement on a 10k-rollout sample</li>
+    </ul>
+  </div>
+
+  <div class="banner ink" id="bannerRetune">
+    <h4>Status: Retuning — traffic shape changed</h4>
+    Burst batches → steady interactive (07:00–22:00 UTC). Packet recomputed: batching continuous 16 · prefix cache on · shadow traffic 25% for 48h. Canary observed: p95 2.2s and holding quality at 86%.
+  </div>
+
+  <div class="banner ink" id="bannerFde">
+    <h4>Status: Forward-deployed — partner squad engaged</h4>
+    Boundless FDE team owns model selection, evals, serving design, deploy, and day-to-day ops. Handoff <span class="mono">fde-LONGPOINT-7f2</span> · first sync Thu 09:00 UTC.
+  </div>
+
+  <!-- 5 · Production impact -->
+  <section class="card" id="cardImpact" style="margin-top:14px">
+    <p class="eyebrow"><span class="step-tag">Step 5</span> Production impact · operated on the tuned path</p>
+    <div id="impactPlaceholder">
+      <p class="muted" style="margin:0">No deploy yet. Pick a gate above — production impact lands here.</p>
+    </div>
+    <div id="impactBody" style="display:none">
+      <div class="impact-grid">
+        <div class="impact-cell">
+          <div class="impact-label">p95 latency</div>
+          <div class="impact-value" id="mP95">1.9s</div>
+          <div class="impact-sub good" id="sP95">within 2.5s target</div>
+        </div>
+        <div class="impact-cell">
+          <div class="impact-label">Cost per rollout</div>
+          <div class="impact-value" id="mCost">$0.017</div>
+          <div class="impact-sub good" id="sCost">−59% vs generic API</div>
+        </div>
+        <div class="impact-cell">
+          <div class="impact-label">Throughput</div>
+          <div class="impact-value" id="mTput">34<span style="font-size:13px">/s</span></div>
+          <div class="impact-sub good" id="sTput">12 GPUs · same budget</div>
+        </div>
+      </div>
+      <div class="api-strip">
+        <span class="k">POST</span> <span class="c">https://inference.boundless.network/v1/chat/completions</span><br>
+        model=<span class="k">deepseek-v4-flash</span> · tuned path <span class="k">100%</span> · quality held at <span class="k">86%</span> across shadow ramp
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <b>Synthetic prototype</b> — not affiliated with Boundless, no accounts, no live inference. Built for the Founding Product Manager application: product-fitted inference = workload fit → model choose → serving tune → deploy / operate gate → production impact.
+</footer>
+
+<script>
+(function () {
+  var st = 'fit'; // fit | retuning | evals | fde | live
+  var pill = document.getElementById('statusPill');
+  var pillText = document.getElementById('statusText');
+  var gateButtons = document.querySelectorAll('#gateStack .gate');
+  var impactPlaceholder = document.getElementById('impactPlaceholder');
+  var impactBody = document.getElementById('impactBody');
+  var bEvals = document.getElementById('bannerEvals');
+  var bRetune = document.getElementById('bannerRetune');
+  var bFde = document.getElementById('bannerFde');
+
+  var leap = [
+    [document.getElementById('st1'), 1],
+    [document.getElementById('st2'), 2],
+    [document.getElementById('st3'), 3],
+    [document.getElementById('st4'), 4],
+    [document.getElementById('st5'), 5]
+  ];
+  function setSteps(upTo) {
+    leap.forEach(function (pair) {
+      var el = pair[0], n = pair[1];
+      el.classList.toggle('done', n <= upTo);
+      el.classList.toggle('now', n === upTo);
+    });
+  }
+  function setPill(color, text) {
+    pill.className = 'pill ' + color;
+    pillText.textContent = text;
+  }
+  function setStatus(color, text, stepsUpTo) {
+    setPill(color, text);
+    setSteps(stepsUpTo);
+  }
+  function hideBanners() { bEvals.classList.remove('show'); bRetune.classList.remove('show'); bFde.classList.remove('show'); }
+
+  function showImpact() {
+    impactPlaceholder.style.display = 'none';
+    impactBody.style.display = 'block';
+  }
+
+  gateButtons.forEach(function (b) {
+    b.addEventListener('click', function () {
+      hideBanners();
+      switch (b.dataset.gate) {
+        case 'deploy':
+          if (st === 'evals') break; // disabled anyway; belt and braces
+          st = 'live';
+          setStatus('green', 'In production · operating', 5);
+          showImpact();
+          gateButtons.forEach(function (g) { g.disabled = true; });
+          b.innerHTML = '<span>Deployed ✓<span class="g-sub">Tuned path live at 100% · operated by Boundless partner team</span></span><span class="g-arrow">✓</span>';
+          animateMetrics();
+          break;
+        case 'retune':
+          st = 'retuning';
+          setStatus('purple', 'Retuning', 3);
+          bRetune.classList.add('show');
+          impactPlaceholder.style.display = 'none';
+          impactBody.style.display = 'none';
+          document.getElementById('projCost').textContent = '$0.014';
+          document.getElementById('projCostDelta').textContent = '−66%';
+          document.getElementById('projP95').textContent = '2.2s';
+          document.getElementById('projTput').textContent = '22';
+          break;
+        case 'evals':
+          st = 'evals';
+          setStatus('amber', 'Not ready to deploy', 4);
+          bEvals.classList.add('show');
+          document.getElementById('gateDeploy').disabled = true;
+          break;
+        case 'fde':
+          st = 'fde';
+          setStatus('gray', 'Forward-deployed', 5);
+          bFde.classList.add('show');
+          gateButtons.forEach(function (g) { g.disabled = true; });
+          break;
+      }
+    });
+  });
+
+  var targets = { p95: 1.9, cost: 17, tput: 34 };
+  function animateMetrics() {
+    var elP = document.getElementById('mP95');
+    var elC = document.getElementById('mCost');
+    var elT = document.getElementById('mTput');
+    var t0 = performance.now(), dur = 700;
+    function frame(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var ease = 1 - Math.pow(1 - k, 3);
+      elP.textContent = (4.8 + (targets.p95 - 4.8) * ease).toFixed(1) + 's';
+      elC.textContent = '$' + (0.041 - (0.041 - targets.cost / 1000) * ease).toFixed(3);
+      elT.innerHTML = Math.round(9 + (targets.tput - 9) * ease) + '<span style="font-size:13px">/s</span>';
+      if (k < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
